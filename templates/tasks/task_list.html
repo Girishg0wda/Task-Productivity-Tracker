@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+<style>
+  .chart-container-large {
+      width: 100%;
+      height: 260px;
+  }
+  .status-pill {
+      border-radius: 999px;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.6rem;
+  }
+  .status-pill-pending {
+      background: rgba(255, 193, 7, 0.16);
+      color: #ffe082;
+      border: 1px solid rgba(255, 193, 7, 0.45);
+  }
+  .status-pill-inprogress {
+      background: rgba(13, 202, 240, 0.16);
+      color: #a5e9ff;
+      border: 1px solid rgba(13, 202, 240, 0.45);
+  }
+  .status-pill-completed {
+      background: rgba(25, 135, 84, 0.18);
+      color: #9be7b5;
+      border: 1px solid rgba(25, 135, 84, 0.5);
+  }
+  .table-dark-glass {
+      background-color: transparent;
+      color: #f7f9fc;
+  }
+  .table-dark-glass thead {
+      background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  }
+  .table-dark-glass tbody tr:hover {
+      background-color: rgba(255, 255, 255, 0.04);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- HEADER STATS -->
+<div class="glass-card p-4 p-md-5 mb-4">
+  <div class="d-flex justify-content-between flex-wrap gap-3 align-items-center">
+    <div>
+      <div class="section-title">Dashboard</div>
+      <h2 class="section-heading-main mb-1">
+        Hello {{ user.username|default:"there" }}, welcome back ⚡
+      </h2>
+      <p class="text-muted small mb-0">
+        Today is <strong>{{ today }}</strong>. Make your productivity graph go higher every week!
+      </p>
+    </div>
+    <div class="text-end">
+      <div class="tiny-label mb-1">Completion Rate</div>
+      <div class="display-6 fw-bold mb-1">
+        {{ completion_percentage }}%
+      </div>
+      <div class="progress-crazy">
+        <div class="progress-crazy-bar" style="width: {{ completion_percentage }}%;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOTAL CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="glass-card glass-card-hover p-3 h-100">
+      <div class="tiny-label mb-1">Total tasks</div>
+      <div class="d-flex align-items-center">
+        <i class="bi bi-list-task me-2 text-warning"></i>
+        <div class="fs-4 fw-semibold">{{ total_tasks }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="glass-card glass-card-hover p-3 h-100">
+      <div class="tiny-label mb-1">Completed</div>
+      <div class="d-flex align-items-center">
+        <i class="bi bi-check-circle-fill me-2 text-success"></i>
+        <div class="fs-4 fw-semibold">{{ completed_tasks }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="glass-card glass-card-hover p-3 h-100">
+      <div class="tiny-label mb-1">Pending</div>
+      <div class="d-flex align-items-center">
+        <i class="bi bi-hourglass-split me-2 text-info"></i>
+        <div class="fs-4 fw-semibold">{{ pending_tasks }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="glass-card glass-card-hover p-3 h-100">
+      <div class="tiny-label mb-1">Overdue</div>
+      <div class="d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+        <div class="fs-4 fw-semibold">{{ overdue_tasks }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FILTERS + ACTIONS -->
+<div class="glass-card p-3 p-md-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between gap-2 align-items-center mb-3">
+    <div class="section-title">Filters & Actions</div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'tasks:task_create' %}" class="btn btn-neon btn-sm">
+        <i class="bi bi-plus-circle-fill me-1"></i> New Task
+      </a>
+      <a href="{% url 'tasks:export_tasks_excel' %}" class="btn btn-ghost btn-sm">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export Excel
+      </a>
+    </div>
+  </div>
+
+  <form method="get" class="row g-2">
+    <div class="col-md-4">
+      <input type="text" name="q" class="form-control form-control-sm"
+             placeholder="Search by title or description..."
+             value="{{ q }}">
+    </div>
+    <div class="col-md-2 col-6">
+      <select name="status" class="form-select form-select-sm">
+        <option value="">Status (All)</option>
+        {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>
+            {{ label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 col-6">
+      <select name="priority" class="form-select form-select-sm">
+        <option value="">Priority (All)</option>
+        {% for value, label in priority_choices %}
+          <option value="{{ value }}" {% if priority == value %}selected{% endif %}>
+            {{ label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 col-6">
+      <input type="date" name="due_date" class="form-control form-control-sm"
+             value="{{ due_date_filter }}">
+    </div>
+    <div class="col-md-2 col-6 d-flex gap-2">
+      <button class="btn btn-ghost btn-sm w-100" type="submit">
+        <i class="bi bi-funnel me-1"></i> Apply
+      </button>
+      <a href="{% url 'tasks:task_list' %}" class="btn btn-ghost btn-sm w-100">
+        <i class="bi bi-x-circle me-1"></i> Clear
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- TASK TABLE -->
+<div class="glass-card p-3 p-md-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="section-title">Your Tasks</div>
+    <div class="tiny-label text-muted">Click icons to quickly change status.</div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-dark-glass align-middle mb-0">
+      <thead>
+        <tr class="tiny-label text-muted">
+          <th>Title</th>
+          <th class="d-none d-md-table-cell">Due</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr class="{% if task.is_overdue %}table-danger{% endif %}">
+          <td>
+            <div class="fw-semibold">{{ task.title }}</div>
+            {% if task.description %}
+              <div class="small text-muted d-none d-md-block">{{ task.description }}</div>
+            {% endif %}
+          </td>
+          <td class="d-none d-md-table-cell">
+            {% if task.due_date %}
+              {{ task.due_date }}
+            {% else %}
+              <span class="text-muted small">No due date</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if task.priority == 'high' %}
+              <span class="badge-soft badge-soft-high">High</span>
+            {% elif task.priority == 'medium' %}
+              <span class="badge-soft badge-soft-medium">Medium</span>
+            {% else %}
+              <span class="badge-soft badge-soft-low">Low</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if task.status == 'pending' %}
+              <span class="status-pill status-pill-pending">Pending</span>
+            {% elif task.status == 'in_progress' %}
+              <span class="status-pill status-pill-inprogress">In Progress</span>
+            {% else %}
+              <span class="status-pill status-pill-completed">Completed</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm" role="group">
+              <a href="{% url 'tasks:task_change_status' task.pk 'pending' %}" class="btn btn-outline-warning btn-sm">
+                <i class="bi bi-hourglass-split"></i>
+              </a>
+              <a href="{% url 'tasks:task_change_status' task.pk 'in_progress' %}" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-play-circle"></i>
+              </a>
+              <a href="{% url 'tasks:task_change_status' task.pk 'completed' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-check2-circle"></i>
+              </a>
+              <a href="{% url 'tasks:task_update' task.pk %}" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'tasks:task_delete' task.pk %}" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash3"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center py-4 text-muted">
+            <i class="bi bi-emoji-smile fs-3 d-block mb-2"></i>
+            No tasks yet. Start by creating one!
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="glass-card p-3 p-md-4 h-100">
+      <div class="section-title mb-2">Tasks Completed per Day</div>
+      <div class="chart-container-large"><canvas id="completedPerDayChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="glass-card p-3 p-md-4 h-100">
+      <div class="section-title mb-2">Priority Distribution</div>
+      <div class="chart-container-large"><canvas id="priorityPieChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- 📌 WEEKLY PRODUCTIVITY SUMMARY FIXED -->
+<div class="glass-card p-3 p-md-4 mt-4 mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="section-title">Weekly Productivity Summary</div>
+      <div class="fw-semibold">
+        Last week: {{ last_week_count }} task{{ last_week_count|pluralize }}
+      </div>
+      <div class="small text-muted mt-1">
+        {% if week_change_percent is not None %}
+          {% if week_change > 0 %}
+            <span class="text-success">
+              <i class="bi bi-arrow-up-right-circle-fill me-1"></i>
+              {{ week_change }} more than previous week ({{ week_change_percent }}%)
+            </span>
+          {% elif week_change < 0 %}
+            <span class="text-danger">
+              <i class="bi bi-arrow-down-right-circle-fill me-1"></i>
+              {{ week_change|add:"0"|cut:"-" }} less than previous week ({{ week_change_percent }}%)
+            </span>
+          {% else %}
+            <span class="text-warning">
+              <i class="bi bi-arrow-right-circle-fill me-1"></i>
+              Same as previous week
+            </span>
+          {% endif %}
+        {% else %}
+          Not enough data to compare yet.
+        {% endif %}
+      </div>
+    </div>
+    <div class="d-none d-md-block text-end">
+      <div class="tiny-label mb-1">Range</div>
+      <div class="small text-muted">Last 4 weeks (Mon–Sun)</div>
+    </div>
+  </div>
+  <div style="height: 260px;">
+    <canvas id="weeklyCompletedChart"></canvas>
+  </div>
+</div>
+
+<p class="footer-mini text-center mt-3">
+  Small consistent steps → big weekly gains 🔥
+</p>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+  const completedLabels = {{ chart_labels_7_days|safe }};
+  const completedData = {{ chart_data_7_days|safe }};
+  const priorityLabels = {{ priority_labels|safe }};
+  const priorityValues = {{ priority_values|safe }};
+  const weekLabels = {{ week_labels|safe }};
+  const weekCompleted = {{ week_completed_counts|safe }};
+
+  new Chart(document.getElementById('completedPerDayChart'), {
+    type: 'bar',
+    data: { labels: completedLabels, datasets: [{ data: completedData }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  new Chart(document.getElementById('priorityPieChart'), {
+    type: 'pie',
+    data: { labels: priorityLabels, datasets: [{ data: priorityValues }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  new Chart(document.getElementById('weeklyCompletedChart'), {
+    type: 'line',
+    data: { labels: weekLabels, datasets: [{ data: weekCompleted, tension: 0.35 }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+</script>
+{% endblock %}

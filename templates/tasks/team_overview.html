@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card p-4 p-md-5 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="section-title">Team Overview</div>
+      <h2 class="section-heading-main mb-1">
+        HR / Team Lead Dashboard
+      </h2>
+      <p class="text-muted small mb-0">
+        Today is <strong>{{ today }}</strong>. See how many tasks each employee owns and their status breakdown.
+      </p>
+    </div>
+    <div class="d-none d-md-block">
+      <span class="tiny-label d-block mb-1">Access</span>
+      <span class="badge rounded-pill bg-warning text-dark">
+        <i class="bi bi-shield-lock-fill me-1"></i> Staff only
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="glass-card p-3 p-md-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="section-title">Employees & Tasks</div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-dark-glass align-middle table-borderless mb-0">
+      <thead>
+        <tr class="tiny-label text-muted">
+          <th>User</th>
+          <th class="text-center">Total</th>
+          <th class="text-center">Completed</th>
+          <th class="text-center">In Progress</th>
+          <th class="text-center">Pending</th>
+          <th class="text-center">Overdue</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>
+            <div class="fw-semibold">
+              <i class="bi bi-person-circle me-1 text-info"></i>
+              {{ user.username }}
+            </div>
+          </td>
+          <td class="text-center fw-semibold">{{ user.total_tasks }}</td>
+          <td class="text-center text-success fw-semibold">{{ user.completed_tasks }}</td>
+          <td class="text-center text-info">{{ user.in_progress_tasks }}</td>
+          <td class="text-center text-warning">{{ user.pending_tasks }}</td>
+          <td class="text-center text-danger fw-semibold">{{ user.overdue_tasks }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">
+            <i class="bi bi-emoji-smile fs-4 d-block mb-2"></i>
+            No tasks found for any users yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="footer-mini text-center">
+  You are viewing the team-wide summary. Employees only see their own tasks.
+</p>
+{% endblock %}
